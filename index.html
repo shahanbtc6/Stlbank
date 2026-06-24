@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stralink - Matrix Style</title>
+    <style>
+        /* تنظیمات پایه */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        /* بوم (Canvas) برای باران کدهای ۰ و ۱ (محوتر) */
+        #matrix-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* در پس‌زمینه */
+            opacity: 0.35; /* محو کردن باران کدها */
+        }
+
+        /* تیتر اصلی Stralink در بالا (دقیقاً مثل عکس) */
+        .header-title {
+            position: absolute;
+            top: 50px;
+            z-index: 2;
+            font-size: 4.5rem;
+            font-weight: bold;
+            letter-spacing: 15px;
+            color: #fff;
+            font-family: 'Times New Roman', Times, serif;
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 40px #0f0;
+            text-align: center;
+        }
+
+        /* باکس متن که در وسط-راست قرار دارد */
+        .text-container {
+            position: absolute;
+            top: 30%;
+            right: 25%;
+            z-index: 2;
+            text-align: right;
+            color: #0f0;
+            font-size: 1.1rem;
+            line-height: 2.2;
+            max-width: 500px;
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
+            direction: ltr;
+        }
+
+        /* استایل خط اول (This is your last chance) - سفید پررنگ */
+        .highlight-line {
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-shadow: 0 0 15px #0f0;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        /* استایل خطوط تایپ شده */
+        .typed-line {
+            display: block;
+            opacity: 0;
+            animation: fadeInLine 0.5s forwards;
+        }
+
+        /* انیمیشن محو شدن خط بعد از تایپ */
+        @keyframes fadeInLine {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* کرسر چشمک‌زن (فقط هنگام تایپ دیده می‌شود) */
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 1.1rem;
+            background-color: #0f0;
+            margin-left: 2px;
+            animation: blink 0.8s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* کپسول‌های آبی و قرمز (دقیقاً مثل عکس) */
+        .pills-container {
+            position: absolute;
+            bottom: 150px;
+            z-index: 2;
+            display: flex;
+            gap: 60px;
+        }
+
+        .pill {
+            width: 70px;
+            height: 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 30px currentColor, inset 0 0 15px rgba(255,255,255,0.5);
+        }
+
+        .pill-blue {
+            background-color: #0044ff;
+            color: #0044ff;
+            box-shadow: 0 0 50px #0044ff, inset 0 0 10px #ffffff;
+        }
+
+        .pill-red {
+            background-color: #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 50px #ff0000, inset 0 0 10px #ffffff;
+        }
+
+        /* واکنش‌گرا برای آی‌پد و موبایل */
+        @media (max-width: 900px) {
+            .header-title { font-size: 3.5rem; top: 30px; }
+            .text-container { right: 10%; left: 10%; text-align: center; font-size: 1rem; top: 25%; }
+            .pills-container { bottom: 80px; gap: 40px; }
+            .pill { width: 50px; height: 25px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- کانواس باران کدها -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <!-- تیتر بالا -->
+    <div class="header-title">STRALINK</div>
+
+    <!-- محفظه متن‌ها -->
+    <div class="text-container" id="text-container">
+        <div class="highlight-line">This is your last chance.</div>
+        <!-- خطوط توسط جاوااسکریپت در اینجا اضافه می‌شوند -->
+    </div>
+
+    <!-- کپسول‌ها -->
+    <div class="pills-container">
+        <div class="pill pill-blue"></div>
+        <div class="pill pill-red"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // بخش ۱: باران کدهای محوتر (Canvas)
+        // ==========================================
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const matrix = "01";
+        const matrixArray = matrix.split("");
+        const fontSize = 18;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+
+        for (let x = 0; x < columns; x++) {
+            drops[x] = 1; 
+        }
+
+        function drawMatrix() {
+            // رنگ پس‌زمینه با شفافیت بالا برای محو شدن
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "#0F0"; 
+            ctx.font = fontSize + "px monospace";
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 40);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // ==========================================
+        // بخش ۲: تایپ خط به خط و ثابت ماندن
+        // ==========================================
+        const textContainer = document.getElementById('text-container');
+        const cursor = document.createElement('span');
+        cursor.className = 'cursor';
+        
+        // متن‌های انگلیسی برای تایپ (خط به خط)
+        const linesToType = [
+            "Restart the Economy",
+            "The first decentralized platform with physical infrastructure",
+            "Let's build the first people's bank"
+        ];
+
+        let currentLineIndex = 0;
+        let currentCharIndex = 0;
+        const typeSpeed = 45; // سرعت تایپ (میلی‌ثانیه)
+
+        function typeNextLine() {
+            if (currentLineIndex >= linesToType.length) {
+                // اگر تمام خطوط تایپ شدند، کرسر را پاک کن
+                if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+                return;
+            }
+
+            const lineText = linesToType[currentLineIndex];
+            
+            // یک عنصر div برای خط جدید بساز
+            const lineElement = document.createElement('div');
+            lineElement.className = 'typed-line';
+            // مکان‌نما را به انتهای این خط ببر
+            lineElement.appendChild(document.createTextNode(''));
+            lineElement.appendChild(cursor);
+            textContainer.appendChild(lineElement);
+
+            let charPos = 0;
+
+            function typeChar() {
+                if (charPos < lineText.length) {
+                    // حرف را قبل از کرسر قرار بده
+                    lineElement.insertBefore(document.createTextNode(lineText[charPos]), cursor);
+                    charPos++;
+                    setTimeout(typeChar, typeSpeed);
+                } else {
+                    // خط کامل شد! مکان‌نما را بردار و به خط بعد برو
+                    if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+                    
+                    // یک تاخیر کوتاه قبل از خط بعدی
+                    setTimeout(() => {
+                        currentLineIndex++;
+                        currentCharIndex = 0;
+                        // دوباره مکان‌نما را به کانتینر اصلی برگردان تا برای خط بعد آماده شود
+                        textContainer.appendChild(cursor);
+                        typeNextLine();
+                    }, 600); // ۰.۶ ثانیه مکث بین خطوط
+                }
+            }
+
+            typeChar();
+        }
+
+        // شروع تایپ بعد از ۱ ثانیه
+        setTimeout(typeNextLine, 1000);
+
+    </script>
+</body>
+</html>
